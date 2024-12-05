@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1, h2 {
+            text-align: left;
+            color: #444;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin: 10px 0 5px;
+        }
+
+        input, select, button {
+            width: 97%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        #deleteButton {
+            width: 15%;
+            min-width: 105px;
+            float: right;
+            background-color: darkred;
+        }
+
+        #theButton {
+            width: 49%;
+            float: left;
+        }
+
+        input:focus, select:focus, button:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+        }
+
+        button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .error {
+            color: red;
+            font-size: 14px;
+            margin-top: -10px;
+            margin-bottom: 10px;
+        }
+
+        .success {
+            color: green;
+            font-size: 14px;
+            margin-top: -10px;
+            margin-bottom: 10px;
+        }
+        
+        .required:after {
+            content:" *";
+            color: red;
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        async function fetchUserDetails(userId) {
+            if (userId === "") {
+                clearForm();
+                return;
+            }
+
+            $.post('handlers/user_handler.php', { action: 'getUserById', id: userId}, function (response) {
+                if (response.error) {
+                    alert(response.error);
+                } else if (response.data) {
+                    populateForm(response.data)
+                } else {
+                    alert('Unknown Error');
+                }
+            });
+        }
+
+        function populateForm(user) {
+            document.getElementById('user_id').value = user.id || '';
+            document.getElementById('first_name').value = user.first_name || '';
+            document.getElementById('last_name').value = user.last_name || '';
+            document.getElementById('email').value = user.email || '';
+            document.getElementById('mobile_number').value = user.mobile_number || '';
+            document.getElementById('address').value = user.address || '';
+            document.getElementById('city').value = user.city || '';
+            document.getElementById('state').value = user.state || '';
+            document.getElementById('zip').value = user.zip || '';
+            $('#header').text("User Details for "+user.first_name+" "+user.last_name);
+            $('#message').text("Review the information and make any changes below, then click Save");
+            $('#theButton').text('Update');
+            $('#deleteButton').show();
+        }
+
+        function clearForm() {
+            document.querySelectorAll('input').forEach(input => input.value = '');
+            $('#header').text("User Form")
+            $('#message').text("Select a user from the drop down to modify or create a new user")
+            $('#theButton').text('Create');
+            $('#deleteButton').hide();
+        }
+
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+
+            const action = $('button[type=submit]:focus').text().toLowerCase()+"User"; // Get action from the clicked button
+            const formData = $('#user_form').serializeArray(); // Gather all input values
+            const data = { action: action }; // Initialize data object
+
+            // Append form inputs to the data object
+            $.each(formData, function (i, field) {
+                data[field.name] = field.value;
+            });
+
+            // Submit the data via POST
+            $.post('handlers/user_handler.php', data, function (response) {
+                if (response.error) {
+                    alert(response.error);
+                } else {
+                    alert(response.message);
+                    if (action === 'Delete') {
+                        clearForm(); // Clear form after delete
+                    } else {
+                        location.reload(); // Reload to reflect changes
+                    }
+                }
+            }, 'json');
+
+            if (result.error) {
+                showAlert(result.error, 'error');
+            } else {
+                showAlert(result.message, 'success');
+                location.reload();
+            }
+        }
+
+        function showAlert(message, type) {
+            const alertBox = document.createElement('div');
+            alertBox.textContent = message;
+            alertBox.className = type;
+            document.querySelector('.container').prepend(alertBox);
+
+            setTimeout(() => alertBox.remove(), 3000);
+        }
+        function fetchUsers() {
+            $.post('handlers/user_handler.php', { action: 'getAllUsers' }, function (response) {
+                if (response.data) {
+                    $('#user_dropdown').html('<option value="">--Select User--</option>');
+                    response.data.forEach(user => {
+                        $('#user_dropdown').append(`<option value="${user.id}">${user.name}</option>`);
+                    });
+                }
+            });
+        }
+
+        $(document).ready(fetchUsers);
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1><img src="images/user.jpg" alt="Generic user image" />User Management</h1>
+
+        <label for="user_dropdown">Select User:</label>
+        <select id="user_dropdown" onchange="fetchUserDetails(this.value)">
+            <option value="">-- Select User --</option>
+        </select>
+
+        <form id="user_form" onsubmit="handleFormSubmit(event)">
+            <h2 id="header">User Details</h2>
+            <p id="message">Select a user from the drop down to modify or create a new user</p>
+            <input type="hidden" name="id" id="user_id">
+            <label for="first_name" class="required">First Name</label>
+            <input type="text" id="first_name" name="first_name" required>
+
+            <label for="last_name" class="required">Last Name</label>
+            <input type="text" id="last_name" name="last_name" required>
+
+            <label for="email" class="required">Email</label>
+            <input type="email" id="email" name="email" required>
+
+            <label for="mobile_number" class="required">Mobile Number</label>
+            <input type="text" id="mobile_number" name="mobile_number" required>
+
+            <label for="address">Address</label>
+            <input type="text" id="address" name="address">
+
+            <label for="city">City</label>
+            <input type="text" id="city" name="city">
+
+            <label for="state">State</label>
+            <input type="text" id="state" name="state">
+
+            <label for="zip">Postal Code</label>
+            <input type="text" id="zip" name="zip">
+
+            <button type="submit" id='theButton'>Create</button>
+            <button type="submit" id='deleteButton' style='display:none'>Delete</button>
+        </form>
+    </div>
+</body>
+</html>
